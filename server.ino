@@ -12,6 +12,10 @@
 //------------------------------------------------------------------------------------
 // WIFI
 //------------------------------------------------------------------------------------
+char ssid2[]= "Automacao";
+char pass2[]= "Senaisp901";
+
+
 char ssid[] = "FVML";
 char pass[] = "fvml1234";
 WiFiServer server(80);
@@ -57,6 +61,8 @@ void loop() {
   //Mostra os dados vindo do cliente
   Serial.print("Data Received: "); Serial.println(request);
   delay(200);
+   String request2 = client.readStringUntil('hum');
+   Serial.println(request2);
 
  
 
