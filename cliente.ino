@@ -14,7 +14,7 @@
 //------------------------------------------------------------------------------------
 
 
-#define DHTPIN 0  // Pino que estamos conectados (GPIO2 no ESP-01)
+#define DHTPIN 2  // Pino que estamos conectados (GPIO2 no ESP-01)
 #define DHTTYPE DHT22  // DHT 11
 
 DHT dht(DHTPIN, DHTTYPE);
@@ -49,8 +49,7 @@ void setup() {
 
   //Enquanto não conectar vai ficar preso aqui
   while (WiFi.status() != WL_CONNECTED) {
-    Serial.println(".");
-    delay(1000);
+    Serial.print(".");
   }
   
 //------------------------------------------------------------------------------------
@@ -75,13 +74,6 @@ void loop() {
   // Testa se o retorno é válido, caso contrário, algo está errado.
   if (isnan(t) || isnan(h)) {
     Serial.println("Falha ao ler o sensor DHT");
-  } else {
-    Serial.print("Umidade: ");
-    Serial.print(h);
-    Serial.print(" %\t");
-    Serial.print("Temperatura: ");
-    Serial.print(t);
-    Serial.println(" *C");
   }
   ContinuousConnection();
 }
@@ -114,14 +106,19 @@ void EnviarDados() {
     //Envia "I am Client" para o server
     float h = dht.readHumidity();
   float t = dht.readTemperature();
-    float hum=h;
-    float temp=t;
-    client.print("I am Client\r");
+    int hum=h;
+    int temp=t;
+    client.println("\nUmidade: "+String(h)+"%"+"\nTemperatura: "+String(t)+"*C");
    
     //Receber dados do server
-
-    client.println(String (hum) + "%humidade");
-    client.println(String (temp) +"C");
-        ClientContinue();
+    /*client.println("DADOS RECEBIDOS:");
+    client.print("UMIDADE:");
+    client.print(hum);
+    client.println("%");
+    client.print("TEMPERATURA");
+    client.print(temp);
+    client.println("*C");
+    */
+    ClientContinue();
     
 }   
