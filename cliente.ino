@@ -6,15 +6,26 @@
 // Bibliotecas necessárias
 //------------------------------------------------------------------------------------
 #include <SPI.h>
+  #include <DHT.h>
+
+
 
 #include <ESP8266WiFi.h>
 //------------------------------------------------------------------------------------
+
+
+#define DHTPIN 0  // Pino que estamos conectados (GPIO2 no ESP-01)
+#define DHTTYPE DHT22  // DHT 11
+
+DHT dht(DHTPIN, DHTTYPE);
 
 //------------------------------------------------------------------------------------
 // WIFI Criado no Server
 //------------------------------------------------------------------------------------
 char ssid[] = "FVML";
 char pass[] = "fvml1234";
+
+//------------------------------------------------------------------------------------
 
 
 //------------------------------------------------------------------------------------
@@ -34,10 +45,12 @@ void setup() {
   Serial.println("");
   Serial.print("Aguardando conexão: ");
   WiFi.begin(ssid, pass);
+  dht.begin();
 
   //Enquanto não conectar vai ficar preso aqui
   while (WiFi.status() != WL_CONNECTED) {
-    Serial.print(".");
+    Serial.println(".");
+    delay(1000);
   }
   
 //------------------------------------------------------------------------------------
@@ -53,6 +66,23 @@ void setup() {
 //====================================================================================
 
 void loop() {
+
+
+  // A leitura da temperatura e umidade pode levar 250ms!
+  // O atraso do sensor pode chegar a 2 segundos.
+  float h = dht.readHumidity();
+  float t = dht.readTemperature();
+  // Testa se o retorno é válido, caso contrário, algo está errado.
+  if (isnan(t) || isnan(h)) {
+    Serial.println("Falha ao ler o sensor DHT");
+  } else {
+    Serial.print("Umidade: ");
+    Serial.print(h);
+    Serial.print(" %\t");
+    Serial.print("Temperatura: ");
+    Serial.print(t);
+    Serial.println(" *C");
+  }
   ContinuousConnection();
 }
 
@@ -82,9 +112,16 @@ void ClientContinue(){
 
 void EnviarDados() {
     //Envia "I am Client" para o server
+    float h = dht.readHumidity();
+  float t = dht.readTemperature();
+    float hum=h;
+    float temp=t;
     client.print("I am Client\r");
    
     //Receber dados do server
-    ClientContinue();
+
+    client.println(String (hum) + "%humidade");
+    client.println(String (temp) +"C");
+        ClientContinue();
     
 }   
