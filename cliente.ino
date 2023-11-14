@@ -71,6 +71,10 @@ void loop() {
   // O atraso do sensor pode chegar a 2 segundos.
   float h = dht.readHumidity();
   float t = dht.readTemperature();
+  Serial.print(" VALOR DE UMIDADE: ");
+  Serial.println(h);
+  Serial.print("VALOR DE TEMPERATURA: ");
+  Serial.println(t);
   // Testa se o retorno é válido, caso contrário, algo está errado.
   if (isnan(t) || isnan(h)) {
     Serial.println("Falha ao ler o sensor DHT");
