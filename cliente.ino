@@ -1,128 +1,70 @@
-//==================================================================================//
-// CLIENT                                                                           //
-//----------------------------------------------------------------------------------//
-
-//------------------------------------------------------------------------------------
-// Bibliotecas necessárias
-//------------------------------------------------------------------------------------
-#include <SPI.h>
-  #include <DHT.h>
-
-
-
 #include <ESP8266WiFi.h>
-//------------------------------------------------------------------------------------
-
+#include <DHT.h>
 
 #define DHTPIN 2  // Pino que estamos conectados (GPIO2 no ESP-01)
-#define DHTTYPE DHT22  // DHT 11
+#define DHTTYPE DHT22  // DHT 22
 
 DHT dht(DHTPIN, DHTTYPE);
 
-//------------------------------------------------------------------------------------
-// WIFI Criado no Server
-//------------------------------------------------------------------------------------
 char ssid[] = "FVML";
 char pass[] = "fvml1234";
 
-//------------------------------------------------------------------------------------
-
-
-//------------------------------------------------------------------------------------
-// IP FIXO DO SERVER -- CASO TROCAR NO SERVER, DEVE TROCAR AQUI TAMBEM
-//------------------------------------------------------------------------------------
-IPAddress server(192,168,10,40);
+IPAddress server(192, 168, 10, 40);
 WiFiClient client;
-//CÓDIGO DHT==========================================================================
-
-
-
-//====================================================================================
 
 void setup() {
-  //Criação de comunicação serial para debug
   Serial.begin(115200);
   Serial.println("");
   Serial.print("Aguardando conexão: ");
   WiFi.begin(ssid, pass);
   dht.begin();
 
-  //Enquanto não conectar vai ficar preso aqui
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print(".");
   }
-  
-//------------------------------------------------------------------------------------
-// Parametros da rede - Somente para debug - Pode apagar
-//------------------------------------------------------------------------------------
+
   Serial.println("");
   Serial.println("ESP Client Connected");
-  Serial.print("IP: ");       Serial.println(WiFi.softAPIP());
+  Serial.print("IP: ");       Serial.println(WiFi.localIP());
   Serial.print("SSID: ");     Serial.println(WiFi.SSID());
   Serial.print("Signal: ");   Serial.println(WiFi.RSSI());
 }
 
-//====================================================================================
-
 void loop() {
-
-
-  // A leitura da temperatura e umidade pode levar 250ms!
-  // O atraso do sensor pode chegar a 2 segundos.
   float h = dht.readHumidity();
   float t = dht.readTemperature();
-  Serial.print(" VALOR DE UMIDADE: ");
-  Serial.println(h);
-  Serial.print("VALOR DE TEMPERATURA: ");
-  Serial.println(t);
-  // Testa se o retorno é válido, caso contrário, algo está errado.
+
   if (isnan(t) || isnan(h)) {
     Serial.println("Falha ao ler o sensor DHT");
+    return;
   }
-  ContinuousConnection();
+
+  ContinuousConnection(h, t);
+  delay(5000); // Atraso entre leituras
 }
 
-//====================================================================================
-
- void ContinuousConnection(){
-  client.connect(server, 80);                          // Conexão com o server
-  EnviarDados();                                        // Enviar dados
- }
-
-//====================================================================================
-
-void ClientContinue(){
-  //Recebe a mensagem do Server - lembrar sempre de mandar a mensagem do server com o "\n"
-  String answer = client.readStringUntil('\r');
-  client.flush();
-
-  //Verifica se a variavel answer não está vazia 
-  if (!answer.isEmpty()) {
-    //Mostra a mensagem recebida
-    Serial.println("Data Received: " + answer);
-    delay(200);
+void ContinuousConnection(float h, float t) {
+  if (!client.connect(server, 80)) {
+    Serial.println("Falha na conexão com o servidor");
+    return;
   }
-}
- 
-//====================================================================================
+  
+  Serial.println("Conectado ao servidor");
 
-void EnviarDados() {
-    //Envia "I am Client" para o server
-    float h = dht.readHumidity();
-  float t = dht.readTemperature();
-    int hum=h;
-    int temp=t;
-    client.println("\nUmidade: "+String(h)+"%"+"\nTemperatura: "+String(t)+"*C");
-   
-    //Receber dados do server
-    /*client.println("DADOS RECEBIDOS:");
-    client.print("UMIDADE:");
-    client.print(hum);
-    client.println("%");
-    client.print("TEMPERATURA");
-    client.print(temp);
-    client.println("*C");
-    */
-    ClientContinue();
-    
-}   
+  client.print("GET /update?humidity=");
+  client.print(h);
+  client.print("&temperature=");
+  client.print(t);
+  client.println(" HTTP/1.1");
+  client.println("Host: 192.168.10.40");
+  client.println("Connection: close");
+  client.println();
+  delay(10); // Aguarda resposta do servidor
+
+  while (client.available()) {
+    String line = client.readStringUntil('\r');
+    Serial.println(line);
+  }
+
+  client.stop();
+}
