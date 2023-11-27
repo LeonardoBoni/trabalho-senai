@@ -1,4 +1,4 @@
-#include <ESP8266WiFi.h>
+#include<ESP8266WiFi.h>
 #include <DHT.h>
 
 char ssid[] = "FVML";
@@ -14,6 +14,8 @@ DHT dht(2, DHT22);
 
 float umidade = 0;
 float temperatura = 0;
+int estado = 0;
+String estadoCompressor = "";
 
 const char* estiloCSS = R"=====(
 body {
@@ -24,9 +26,10 @@ body {
     align-items: center;
     display: flex;
     border-radius: 10px;
-    height: 70px;
-    width: auto;
+    height: auto;
+    width: 900px;
     background-color: red;
+    padding : 35px;
 }
 
 #data-hora {
@@ -131,13 +134,24 @@ body {
     border-radius: 20px;
     background-color: red;
     height: 550px;
-    width: 800px;
-    margin-left: auto;
-    margin-right: auto;
+    width: 950px;
+    margin: 0, auto;
     margin-top: 80px;
 }
 
 .titulo-corpo-compressor {
+    text-decoration: underline;
+    padding: 50px;
+    margin: 0 auto;
+    color: white;
+    font-size: 60px;
+    text-align: center;
+    padding: 65px;
+    margin-top: 100px;
+}
+
+#estado{
+  .titulo-corpo-compressor {
     text-decoration: underline;
     padding: 30px;
     margin: 0 auto;
@@ -145,8 +159,10 @@ body {
     font-size: 40px;
     text-align: center;
 }
+}
 
 .botao-compressor {
+  margin-top: 150px;
     margin: 0 30px;
     font-size: 20px;
     width: 200px;
@@ -175,7 +191,8 @@ body {
     color: white;
     text-align: center;
     margin: 0 auto;
-    font-size: 25px;
+    font-size: 37px;
+    margin-top: 40px;
 }
 
 #estado {
@@ -192,7 +209,6 @@ body {
     margin: 0 auto;
 }
 )=====";
-
 
 void setup() {
   Serial.begin(115200);
@@ -218,25 +234,28 @@ void loop() {
   client.flush();
 
   if (request.indexOf("/update") != -1) {
-    if (request.indexOf("humidity=") != -1) {
-      umidade = request.substring(request.indexOf("humidity=") + 9).toFloat();
+    int umidadeIndex = request.indexOf("humidity=");
+    int temperaturaIndex = request.indexOf("temperature=");
+
+    if (umidadeIndex != -1) {
+      umidade = request.substring(umidadeIndex + 9, request.indexOf('&', umidadeIndex)).toFloat();
     }
 
-    if (request.indexOf("temperature=") != -1) {
-      temperatura = request.substring(request.indexOf("temperature=") + 12).toFloat();
+    if (temperaturaIndex != -1) {
+      temperatura = request.substring(temperaturaIndex + 12).toFloat();
     }
 
-    // Aqui, estamos apenas imprimindo os valores recebidos
     Serial.print("Umidade recebida: ");
     Serial.println(umidade);
     Serial.print("Temperatura recebida: ");
     Serial.println(temperatura);
   }
 
-  
+  Serial.println(estado);
+
   String html = "<!DOCTYPE html><html lang=\"en\"><head>";
   html += "<style>";
-  html += estiloCSS ;
+  html += estiloCSS;
   html += "</style>";
   html += "<script>";
   html += "const zeroFill = n => ('0' + n).slice(-2);";
@@ -246,13 +265,11 @@ void loop() {
   html += "document.getElementById('data-hora').innerHTML = dataHora;";
   html += "}, 1000);";
   html += "const options = { timeZone: 'America/Sao_Paulo', hour: 'numeric', minute: 'numeric' };";
-
   html += "function home() { window.location.href = 'index.html'; }";
-
-  html += "function refresh() {";
-  html += " location.reload();}";
-
+  html += "function estadoon() { estado = 1; estadoCompressor = 'LIGADO'; }";
+  html += "function estadooff() { estado = 0; estadoCompressor = 'DESLIGADO'; }";
   html += "</script>";
+
   html += "<meta charset=\"UTF-8\">";
   html += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">";
   html += "<title>Sistema de monitoramento de compressores</title>";
@@ -264,11 +281,12 @@ void loop() {
   html += "</div>";
   html += "</header>";
   html += "<section class=\"corpo-compressor\">";
-  html += "<h1 class=\"titulo-corpo-compressor\">Compressor está selecionado!</h1>";
-  html += "<input type=\"button\" class=\"botao-compressor\" value=\"ATUALIZAR\" onclick=\"refresh()\">";
+  html += "<h1 class=\"titulo-corpo-compressor\">Compressor está <br> <p id=\"estado\"></p></h1>";
+  html += "<input type=\"button\" class=\"botao-compressor\" value=\"LIGA\" onclick=\"estadoon()\">";
+  html += "<input type=\"button\" class=\"botao-compressor\" value=\"DESLIGA\" onclick=\"estadooff()\">";
   html += "<p class = \"texto-corpo-compressor\">";
-  html += "O compressor está com uma umidade de :   " + String(umidade) + "% 💦</p>";
-  html += "O compressor está com uma temperatura de: " + String(temperatura) + "°C</p>";
+  html += "O compressor está com uma umidade de : " + String(umidade) + "% 💦<br>";
+  html += "O compressor está com uma temperatura de: " + String(temperatura) + "°C 🌡️</p>";
   html += "</section>";
   html += "<img src=\"senai logo.png\" class=\"imagem-logo\" alt=\"logo-senai\">";
   html += "</section>";
