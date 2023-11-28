@@ -1,4 +1,4 @@
-#include<ESP8266WiFi.h>
+#include <ESP8266WiFi.h>
 #include <DHT.h>
 
 char ssid[] = "FVML";
@@ -14,8 +14,8 @@ DHT dht(2, DHT22);
 
 float umidade = 0;
 float temperatura = 0;
-int estado = 0;
 String estadoCompressor = "";
+String dataHora = "";
 
 const char* estiloCSS = R"=====(
 body {
@@ -208,100 +208,130 @@ body {
     text-align: center;
     margin: 0 auto;
 }
+
+
+#mensagem-desligado {
+    color: white;
+    font-size: 25px;
+    text-align: center;
 )=====";
 
 void setup() {
-  Serial.begin(115200);
-  WiFi.mode(WIFI_AP_STA);
-  WiFi.softAPConfig(ip, gateway, subnet);
-  WiFi.softAP(ssid, pass);
-  delay(500);
-  server.begin();
-
-  Serial.println("ESP Server Initialized");
-  Serial.print("IP: "); Serial.println(WiFi.softAPIP());
-  Serial.print("SSID: "); Serial.println(WiFi.SSID());
-  Serial.print("Signal: "); Serial.println(WiFi.RSSI());
+    Serial.begin(115200);
+    WiFi.mode(WIFI_AP_STA);
+    WiFi.softAPConfig(ip, gateway, subnet);
+    WiFi.softAP(ssid, pass);
+    delay(500);
+    server.begin();
+    Serial.println("Servidor ESP inicializado");
+    Serial.print("IP: ");
+    Serial.println(WiFi.softAPIP());
+    Serial.print("SSID: ");
+    Serial.println(WiFi.SSID());
+    Serial.print("Sinal: ");
+    Serial.println(WiFi.RSSI());
 }
 
 void loop() {
-  WiFiClient client = server.available();
-  if (!client) {
-    return;
-  }
+    WiFiClient client = server.available();
 
-  String request = client.readStringUntil('\r');
-  client.flush();
-
-  if (request.indexOf("/update") != -1) {
-    int umidadeIndex = request.indexOf("humidity=");
-    int temperaturaIndex = request.indexOf("temperature=");
-
-    if (umidadeIndex != -1) {
-      umidade = request.substring(umidadeIndex + 9, request.indexOf('&', umidadeIndex)).toFloat();
+    if (!client) {
+        return;
     }
 
-    if (temperaturaIndex != -1) {
-      temperatura = request.substring(temperaturaIndex + 12).toFloat();
+    String request = client.readStringUntil('\r');
+    client.flush();
+
+    if (request.indexOf("/update") != -1) {
+        int umidadeIndex = request.indexOf("humidity=");
+        int temperaturaIndex = request.indexOf("temperature=");
+
+        if (umidadeIndex != -1) {
+            umidade = request.substring(umidadeIndex + 9, request.indexOf('&', umidadeIndex)).toFloat();
+        }
+
+        if (temperaturaIndex != -1) {
+            temperatura = request.substring(temperaturaIndex + 12).toFloat();
+        }
+
+        Serial.print("Umidade recebida: ");
+        Serial.println(umidade);
+        Serial.print("Temperatura recebida: ");
+        Serial.println(temperatura);
+
+        // Atualize a hora atual (você pode usar a lógica específica do seu projeto aqui)
+        dataHora = "data e hora atual";
+
+        String jsonResponse = "{\"estado\":\"" + estadoCompressor + "\", \"umidade\":" + String(umidade) + ", \"temperatura\":" + String(temperatura) + ", \"dataHora\":\"" + dataHora + "\"}";
+        client.println("HTTP/1.1 200 OK");
+        client.println("Content-Type: application/json");
+        client.println("Connection: close");
+        client.println();
+        client.println(jsonResponse);
+        delay(200);
+        return;
     }
 
-    Serial.print("Umidade recebida: ");
-    Serial.println(umidade);
-    Serial.print("Temperatura recebida: ");
-    Serial.println(temperatura);
-  }
+    String html = "<!DOCTYPE html><html lang=\"en\"><head>";
+    html += "<style>";
+    html += estiloCSS;
+    html += "</style>";
+    html += "<script>";
+    html += "const zeroFill = n => ('0' + n).slice(-2);";
+    html += "const updateData = () => {";
+    html += "const xhr = new XMLHttpRequest();";
+    html += "xhr.open('GET', '/update', true);";
+    html += "xhr.onload = function () {";
+    html += "if (xhr.status === 200) {";
+    html += "const data = JSON.parse(xhr.responseText);";
+    html += "document.getElementById('estado').innerHTML = data.estado;";
+    html += "document.getElementById('umidade').innerHTML = data.umidade + \"% 💦\";";
+    html += "document.getElementById('temperatura').innerHTML = data.temperatura + \"°C 🌡️\";";
+    html += "document.getElementById('data-hora').innerHTML = data.dataHora;";
+    html += "document.getElementById('mensagem-desligado').innerHTML = '';";  // Limpa a mensagem quando os dados são recebidos
+    html += "}";
+    html += "};";
+    html += "xhr.send();";
+    html += "};";
+    html += "const intervalo = setInterval(updateData, 5000);";  // Atualiza a cada 5 segundos (5000 milissegundos)
+    html += "function home() { window.location.href = 'index.html'; }";
+    html += "function estadoon() {estadoCompressor = 'LIGADO'; document.getElementById('estado').innerHTML = estadoCompressor; }";
+    html += "function estadooff() { estadoCompressor = 'DESLIGADO'; document.getElementById('estado').innerHTML = estadoCompressor; document.getElementById('umidade').innerHTML = ''; document.getElementById('temperatura').innerHTML = ''; document.getElementById('mensagem-desligado').innerHTML = 'O compressor está desligado.'; umidade = 0; temperatura = 0;}";
+    html += "</script>";
 
-  Serial.println(estado);
+    html += "<meta charset=\"UTF-8\">";
+    html += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">";
+    html += "<title>Sistema de monitoramento de compressores</title>";
+    html += "</head><body>";
+    html += "<header>";
+    html += "<div class=\"cabecalho\">";
+    html += "<input type=\"button\" class=\"botao-home\" value=\" HOME\" onclick=\"home()\">";
+    html += "<h1 class=\"titulo-cabecalho\"><strong>Sistema de monitoramento dos compressores de ar do SENAI-Araçatuba.</strong> </h1>";
+    html += "</div>";
+    html += "</header>";
+    html += "<section class=\"corpo-compressor\">";
+    html += "<h1 class=\"titulo-corpo-compressor\">Compressor está <br> <p id=\"estado\"></p></h1>";
+    html += "<input type=\"button\" class=\"botao-compressor\" value=\"LIGA\" onclick=\"estadoon()\">";
+    html += "<input type=\"button\" class=\"botao-compressor\" value=\"DESLIGA\" onclick=\"estadooff()\">";
+    html += "<p class=\"texto-corpo-compressor\">";
+    html += "O compressor está com uma umidade de: <span id=\"umidade\"></span><br>";  // Arredondando para a unidade
+    html += "O compressor está com uma temperatura de: <span id=\"temperatura\"></span></p>";
+    html += "<p id=\"mensagem-desligado\" style=\"color: white; font-size: 25px; text-align: center;\"></p>";
+    html += "</section>";
+    html += "<img src=\"senai logo.png\" class=\"imagem-logo\" alt=\"logo-senai\">";
+    html += "</section>";
+    html += "<footer class=\"rodape\">";
+    html += "<p class=\"texto-rodape\">";
+    html += "©Produzido pelos alunos de Eletroeletrônica 2023";
+    html += "</p>";
+    html += "</footer>";
+    html += "</body>";
+    html += "</html>";
 
-  String html = "<!DOCTYPE html><html lang=\"en\"><head>";
-  html += "<style>";
-  html += estiloCSS;
-  html += "</style>";
-  html += "<script>";
-  html += "const zeroFill = n => ('0' + n).slice(-2);";
-  html += "const interval = setInterval(() => {";
-  html += "const now = new Date();";
-  html += "const dataHora = zeroFill(now.getUTCDate()) + '/' + zeroFill((now.getMonth() + 1)) + '/' + now.getFullYear() + ' ' + zeroFill(now.getHours()) + ':' + zeroFill(now.getMinutes()) + ':' + zeroFill(now.getSeconds());";
-  html += "document.getElementById('data-hora').innerHTML = dataHora;";
-  html += "}, 1000);";
-  html += "const options = { timeZone: 'America/Sao_Paulo', hour: 'numeric', minute: 'numeric' };";
-  html += "function home() { window.location.href = 'index.html'; }";
-  html += "function estadoon() { estado = 1; estadoCompressor = 'LIGADO'; }";
-  html += "function estadooff() { estado = 0; estadoCompressor = 'DESLIGADO'; }";
-  html += "</script>";
-
-  html += "<meta charset=\"UTF-8\">";
-  html += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">";
-  html += "<title>Sistema de monitoramento de compressores</title>";
-  html += "</head><body>";
-  html += "<header>";
-  html += "<div class=\"cabecalho\">";
-  html += "<input type=\"button\" class=\"botao-home\" value=\"HOME\" onclick=\"home()\">";
-  html += "<h1 class=\"titulo-cabecalho\"><strong>Sistema de monitoramento dos compressores de ar do SENAI-Araçatuba.</strong></h1>";
-  html += "</div>";
-  html += "</header>";
-  html += "<section class=\"corpo-compressor\">";
-  html += "<h1 class=\"titulo-corpo-compressor\">Compressor está <br> <p id=\"estado\"></p></h1>";
-  html += "<input type=\"button\" class=\"botao-compressor\" value=\"LIGA\" onclick=\"estadoon()\">";
-  html += "<input type=\"button\" class=\"botao-compressor\" value=\"DESLIGA\" onclick=\"estadooff()\">";
-  html += "<p class = \"texto-corpo-compressor\">";
-  html += "O compressor está com uma umidade de : " + String(umidade) + "% 💦<br>";
-  html += "O compressor está com uma temperatura de: " + String(temperatura) + "°C 🌡️</p>";
-  html += "</section>";
-  html += "<img src=\"senai logo.png\" class=\"imagem-logo\" alt=\"logo-senai\">";
-  html += "</section>";
-  html += "<footer class=\"rodape\">";
-  html += "<p class=\"texto-rodape\">";
-  html += "&copy;Produzido pelos alunos de Eletroeletrônica 2023";
-  html += "</p>";
-  html += "</footer>";
-  html += "</body>";
-  html += "</html>";
-
-  client.println("HTTP/1.1 200 OK");
-  client.println("Content-Type: text/html");
-  client.println("Connection: close");
-  client.println();
-  client.println(html);
-  delay(200);
+   client.println("HTTP/1.1 200 OK");
+    client.println("Content-Type: text/html");
+    client.println("Connection: close");
+    client.println();
+    client.println(html);
+    delay(200);
 }
