@@ -1,5 +1,6 @@
 #include <ESP8266WiFi.h>
 #include <DHT.h>
+#include <ESP8266WebServer.h>
 
 char ssid[] = "FVML";
 char pass[] = "fvml1234";
@@ -16,6 +17,7 @@ float umidade = 0;
 float temperatura = 0;
 String estadoCompressor = "";
 String dataHora = "";
+const char* imagemLogo = "/senai_logo.png";
 
 const char* estiloCSS = R"=====(
 body {
@@ -272,61 +274,66 @@ void loop() {
         return;
     }
 
-    String html = "<!DOCTYPE html><html lang=\"en\"><head>";
-    html += "<style>";
-    html += estiloCSS;
-    html += "</style>";
-    html += "<script>";
-    html += "const zeroFill = n => ('0' + n).slice(-2);";
-    html += "const updateData = () => {";
-    html += "const xhr = new XMLHttpRequest();";
-    html += "xhr.open('GET', '/update', true);";
-    html += "xhr.onload = function () {";
-    html += "if (xhr.status === 200) {";
-    html += "const data = JSON.parse(xhr.responseText);";
-    html += "document.getElementById('estado').innerHTML = data.estado;";
-    html += "document.getElementById('umidade').innerHTML = data.umidade + \"% 💦\";";
-    html += "document.getElementById('temperatura').innerHTML = data.temperatura + \"°C 🌡️\";";
-    html += "document.getElementById('data-hora').innerHTML = data.dataHora;";
-    html += "document.getElementById('mensagem-desligado').innerHTML = '';";  // Limpa a mensagem quando os dados são recebidos
-    html += "}";
-    html += "};";
-    html += "xhr.send();";
-    html += "};";
-    html += "const intervalo = setInterval(updateData, 5000);";  // Atualiza a cada 5 segundos (5000 milissegundos)
-    html += "function home() { window.location.href = 'index.html'; }";
-    html += "function estadoon() {estadoCompressor = 'LIGADO'; document.getElementById('estado').innerHTML = estadoCompressor; }";
-    html += "function estadooff() { estadoCompressor = 'DESLIGADO'; document.getElementById('estado').innerHTML = estadoCompressor; document.getElementById('umidade').innerHTML = ''; document.getElementById('temperatura').innerHTML = ''; document.getElementById('mensagem-desligado').innerHTML = 'O compressor está desligado.'; umidade = 0; temperatura = 0;}";
-    html += "</script>";
+  String html = "<!DOCTYPE html><html lang=\"en\"><head>";
+html += "<style>";
+html += estiloCSS;
+html += "</style>";
+html += "<script>";
+html += "const zeroFill = n => ('0' + n).slice(-2);";
+html += "const updateData = () => {";
+html += "  if (estadoCompressor === 'LIGADO') {"; // Verifica se o compressor está ligado
+html += "    const xhr = new XMLHttpRequest();";
+html += "    xhr.open('GET', '/update', true);";
+html += "    xhr.onload = function () {";
+html += "      if (xhr.status === 200) {";
+html += "        const data = JSON.parse(xhr.responseText);";
+html += "        document.getElementById('estado').innerHTML = data.estado;";
+html += "        document.getElementById('umidade').innerHTML = data.umidade + \"% 💦\";";
+html += "        document.getElementById('temperatura').innerHTML = data.temperatura + \"°C 🌡️\";";
+html += "        document.getElementById('data-hora').innerHTML = data.dataHora;";
+html += "        document.getElementById('mensagem-desligado').innerHTML = '';";
+html += "      }";
+html += "    };";
+html += "    xhr.send();";
+html += "  }";
+html += "};";
+html += "const intervalo = setInterval(updateData, 5000);";
+html += "function home() { window.location.href = 'index.html'; }";
+html += "function estadoon() {estadoCompressor = 'LIGADO'; document.getElementById('estado').innerHTML = estadoCompressor; document.getElementById('mensagem-desligado').innerHTML = ''; }";
 
-    html += "<meta charset=\"UTF-8\">";
-    html += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">";
-    html += "<title>Sistema de monitoramento de compressores</title>";
-    html += "</head><body>";
-    html += "<header>";
-    html += "<div class=\"cabecalho\">";
-    html += "<input type=\"button\" class=\"botao-home\" value=\" HOME\" onclick=\"home()\">";
-    html += "<h1 class=\"titulo-cabecalho\"><strong>Sistema de monitoramento dos compressores de ar do SENAI-Araçatuba.</strong> </h1>";
-    html += "</div>";
-    html += "</header>";
-    html += "<section class=\"corpo-compressor\">";
-    html += "<h1 class=\"titulo-corpo-compressor\">Compressor está <br> <p id=\"estado\"></p></h1>";
-    html += "<input type=\"button\" class=\"botao-compressor\" value=\"LIGA\" onclick=\"estadoon()\">";
-    html += "<input type=\"button\" class=\"botao-compressor\" value=\"DESLIGA\" onclick=\"estadooff()\">";
-    html += "<p class=\"texto-corpo-compressor\">";
-    html += "O compressor está com uma umidade de: <span id=\"umidade\"></span><br>";  // Arredondando para a unidade
-    html += "O compressor está com uma temperatura de: <span id=\"temperatura\"></span></p>";
-    html += "<p id=\"mensagem-desligado\" style=\"color: white; font-size: 25px; text-align: center;\"></p>";
-    html += "</section>";
-    html += "<img src=\"senai logo.png\" class=\"imagem-logo\" alt=\"logo-senai\">";
-    html += "</section>";
-    html += "<footer class=\"rodape\">";
-    html += "<p class=\"texto-rodape\">";
-    html += "©Produzido pelos alunos de Eletroeletrônica 2023";
-    html += "</p>";
-    html += "</footer>";
-    html += "</body>";
-    html += "</html>";
+html += "function estadooff() { estadoCompressor = 'DESLIGADO'; document.getElementById('estado').innerHTML = estadoCompressor; document.getElementById('umidade').innerHTML = ''; document.getElementById('temperatura').innerHTML = ''; document.getElementById('mensagem-desligado').innerHTML = ''; umidade = 0; temperatura = 0;}";
+html += "</script>";
+
+
+html += "<meta charset=\"UTF-8\">";
+html += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">";
+html += "<title>Sistema de monitoramento de compressores</title>";
+html += "</head><body>";
+html += "<header>";
+html += "<div class=\"cabecalho\">";
+html += "<input type=\"button\" class=\"botao-home\" value=\" HOME\" onclick=\"home()\">";
+html += "<h1 class=\"titulo-cabecalho\"><strong>Sistema de monitoramento dos compressores de ar do SENAI-Araçatuba.</strong> </h1>";
+html += "</div>";
+html += "</header>";
+html += "<section class=\"corpo-compressor\">";
+html += "<h1 class=\"titulo-corpo-compressor\">Compressor está <br> <p id=\"estado\"></p></h1>";
+html += "<input type=\"button\" class=\"botao-compressor\" value=\"LIGA\" onclick=\"estadoon()\">";
+html += "<input type=\"button\" class=\"botao-compressor\" value=\"DESLIGA\" onclick=\"estadooff()\">";
+html += "<p class=\"texto-corpo-compressor\">";
+html += "O compressor está com uma umidade de: <span id=\"umidade\"></span><br>";  // Arredondando para a unidade
+html += "O compressor está com uma temperatura de: <span id=\"temperatura\"></span></p>";
+html += "<img src=\"" + String(imagemLogo) + "\" class=\"imagem-logo\" alt=\"logo-senai\">";
+html += "<p id=\"mensagem-desligado\" style=\"color: white; font-size: 25px; text-align: center;\"></p>";
+html += "</section>";
+html += "<img src=\"senai logo.png\" class=\"imagem-logo\" alt=\"logo-senai\">";
+html += "</section>";
+html += "<footer class=\"rodape\">";
+html += "<p class=\"texto-rodape\">";
+html += "©Produzido pelos alunos de Eletroeletrônica 2023";
+html += "</p>";
+html += "</footer>";
+html += "</body>";
+html += "</html>";
 
    client.println("HTTP/1.1 200 OK");
     client.println("Content-Type: text/html");
